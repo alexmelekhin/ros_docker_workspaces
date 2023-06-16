@@ -1,0 +1,61 @@
+FROM nvcr.io/nvidia/cuda:11.6.2-cudnn8-devel-ubuntu20.04
+
+ENV DEBIAN_FRONTEND noninteractive
+
+# Install system dependencies for convinient development inside container
+RUN apt-get update && apt-get upgrade -y && apt-get install -y \
+    zsh \
+    git \
+    tmux \
+    curl \
+    wget \
+    vim \
+    build-essential \
+    sudo \
+    python3-pip \
+    swig \
+    lsb-release \
+    gnupg \
+    openssh-server \
+    libgl1-mesa-glx \
+    ffmpeg \
+    libsm6 \
+    libxext6 \
+    libeigen3-dev \
+    libboost-all-dev \
+    libssl-dev \
+    libblas-dev \
+    liblapack-dev
+
+# Install ROS1 Noetic
+RUN sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list' && \
+    curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | apt-key add - && \
+    apt-get update && apt-get install --no-install-recommends -y \
+        ros-noetic-desktop \
+        ros-noetic-cv-bridge \
+        python3-rosdep \
+        python3-rosinstall \
+        python3-rosinstall-generator \
+        python3-wstool && \
+    rosdep init && \
+    rosdep update
+
+# add user and his password
+ARG USER=docker_noetic
+ARG UID=1000
+ARG GID=1000
+# default password
+ARG PW=user
+
+RUN useradd -m ${USER} --uid=${UID} && echo "${USER}:${PW}" | chpasswd && adduser ${USER} sudo
+WORKDIR /home/${USER}
+RUN mkdir -p catkin_ws && chown -R ${UID}:${GID} /home/${USER}
+
+USER ${UID}:${GID}
+
+# install zsh with oh-my-zsh
+RUN sh -c "$(wget -O- https://github.com/deluan/zsh-in-docker/releases/download/v1.1.5/zsh-in-docker.sh)" -- \
+    -x -t robbyrussell
+
+RUN echo "source /opt/ros/noetic/setup.bash" >> ~/.bashrc && \
+    echo "source /opt/ros/noetic/setup.zsh" >> ~/.zshrc
